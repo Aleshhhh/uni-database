@@ -8,14 +8,11 @@ export type FileItem = {
     path: string; // url friendly path component
 };
 
-export type CourseFolders = {
-    slides: FileItem[];
-    exams: FileItem[];
-    other: FileItem[];
-};
+export type CourseFolders = Record<string, FileItem[]>;
 
 export async function getCourses(): Promise<string[]> {
     try {
+        await fs.mkdir(dataDir, { recursive: true });
         const entries = await fs.readdir(dataDir, { withFileTypes: true });
         return entries
             .filter((entry) => entry.isDirectory())
@@ -28,23 +25,30 @@ export async function getCourses(): Promise<string[]> {
 }
 
 export async function getCourseContent(courseName: string): Promise<CourseFolders> {
-    const folders: CourseFolders = { slides: [], exams: [], other: [] };
+    const folders: Record<string, FileItem[]> = {};
     const coursePath = path.join(dataDir, courseName);
 
-    for (const folder of ["slides", "exams", "other"] as const) {
-        try {
+    try {
+        const courseEntries = await fs.readdir(coursePath, { withFileTypes: true });
+        const directories = courseEntries.filter(entry => entry.isDirectory()).map(entry => entry.name);
+
+        for (const folder of directories) {
             const folderPath = path.join(coursePath, folder);
-            const entries = await fs.readdir(folderPath, { withFileTypes: true });
-            folders[folder] = entries
-                .filter((entry) => entry.isFile() && entry.name.endsWith(".pdf"))
-                .map((entry) => ({
-                    name: entry.name,
-                    path: encodeURIComponent(entry.name),
-                }))
-                .sort((a, b) => a.name.localeCompare(b.name));
-        } catch {
-            // folder might not exist, silently ignore
+            try {
+                const entries = await fs.readdir(folderPath, { withFileTypes: true });
+                folders[folder] = entries
+                    .filter((entry) => entry.isFile() && entry.name.endsWith(".pdf"))
+                    .map((entry) => ({
+                        name: entry.name,
+                        path: encodeURIComponent(entry.name),
+                    }))
+                    .sort((a, b) => a.name.localeCompare(b.name));
+            } catch {
+                // folder might not exist, silently ignore
+            }
         }
+    } catch {
+        // course directory might not exist
     }
 
     return folders;

@@ -12,6 +12,7 @@ import { useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { CreateCourseDialog, CreateFolderDialog, UploadFileDialog } from "./sidebar-dialogs";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -39,82 +40,73 @@ export function Sidebar({ courses }: { courses: { name: string; content: CourseF
                     <Book className="w-5 h-5 text-primary" />
                     Uni Portal
                 </div>
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleSync}
-                    disabled={isPending}
-                >
-                    <RefreshCw className={cn("w-4 h-4", isPending && "animate-spin")} />
-                </Button>
+                <div className="flex items-center gap-2">
+                    <CreateCourseDialog />
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleSync}
+                        disabled={isPending}
+                        title="Sync"
+                    >
+                        <RefreshCw className={cn("w-4 h-4", isPending && "animate-spin")} />
+                    </Button>
+                </div>
             </div>
             <Separator />
 
             <ScrollArea className="flex-1 py-4">
                 {courses.length === 0 ? (
-                    <div className="px-4 text-sm text-muted-foreground italic">No courses found in /data.</div>
+                    <div className="px-4 text-sm text-muted-foreground italic">No courses found. Create one!</div>
                 ) : (
                     <div className="px-3 space-y-1">
                         {courses.map((course) => (
                             <div key={course.name} className="flex flex-col">
-                                <button
-                                    onClick={() => setOpenCourse(openCourse === course.name ? null : course.name)}
-                                    className="flex items-center gap-2 p-2 rounded-md hover:bg-accent/50 text-sm font-medium transition-colors"
-                                >
-                                    <Folder className="w-4 h-4 text-primary" />
-                                    {course.name}
-                                </button>
+                                <div className="flex items-center justify-between p-2 rounded-md hover:bg-accent/50 transition-colors group">
+                                    <button
+                                        onClick={() => setOpenCourse(openCourse === course.name ? null : course.name)}
+                                        className="flex-1 flex items-center gap-2 text-sm font-medium text-left"
+                                    >
+                                        <Folder className="w-4 h-4 text-primary" />
+                                        {course.name}
+                                    </button>
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                        <CreateFolderDialog courseName={course.name} />
+                                    </div>
+                                </div>
 
                                 {openCourse === course.name && (
                                     <div className="pl-6 pr-2 pt-1 pb-2 space-y-4">
-                                        {/* Slides */}
-                                        {course.content.slides.length > 0 && (
-                                            <div className="space-y-1">
-                                                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Slides</div>
-                                                {course.content.slides.map((file) => {
-                                                    const href = `/${encodeURIComponent(course.name)}/slides/${file.path}`;
-                                                    return (
-                                                        <Link key={file.name} href={href} className={cn("flex items-center gap-2 p-1.5 rounded-md text-sm transition-colors", getActiveState(href))}>
-                                                            <FileText className="w-3.5 h-3.5" />
-                                                            <span className="truncate" title={file.name}>{file.name}</span>
-                                                        </Link>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
+                                        {Object.entries(course.content)
+                                            .sort(([a], [b]) => a.localeCompare(b))
+                                            .map(([folderName, files]) => (
+                                                <div key={folderName} className="space-y-1">
+                                                    <div className="flex items-center justify-between pr-2 mb-2 group/folder">
+                                                        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                            {folderName}
+                                                        </div>
+                                                        <div className="opacity-0 group-hover/folder:opacity-100 transition-opacity">
+                                                            <UploadFileDialog courseName={course.name} folderName={folderName} />
+                                                        </div>
+                                                    </div>
 
-                                        {/* Exams */}
-                                        {course.content.exams.length > 0 && (
-                                            <div className="space-y-1">
-                                                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Exams</div>
-                                                {course.content.exams.map((file) => {
-                                                    const href = `/${encodeURIComponent(course.name)}/exams/${file.path}`;
-                                                    const displayName = formatItalianDate(file.name);
-                                                    return (
-                                                        <Link key={file.name} href={href} className={cn("flex items-center gap-2 p-1.5 rounded-md text-sm transition-colors", getActiveState(href))}>
-                                                            <FileText className="w-3.5 h-3.5" />
-                                                            <span className="truncate" title={displayName}>{displayName}</span>
-                                                        </Link>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-
-                                        {/* Other */}
-                                        {course.content.other.length > 0 && (
-                                            <div className="space-y-1">
-                                                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Other</div>
-                                                {course.content.other.map((file) => {
-                                                    const href = `/${encodeURIComponent(course.name)}/other/${file.path}`;
-                                                    return (
-                                                        <Link key={file.name} href={href} className={cn("flex items-center gap-2 p-1.5 rounded-md text-sm transition-colors", getActiveState(href))}>
-                                                            <FileText className="w-3.5 h-3.5" />
-                                                            <span className="truncate" title={file.name}>{file.name}</span>
-                                                        </Link>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
+                                                    {files.length === 0 ? (
+                                                        <div className="text-xs text-muted-foreground italic px-1.5 py-1">Empty</div>
+                                                    ) : (
+                                                        files.map((file) => {
+                                                            const href = `/${encodeURIComponent(course.name)}/${encodeURIComponent(folderName)}/${file.path}`;
+                                                            const isExams = folderName.toLowerCase() === "exams";
+                                                            const displayName = isExams ? formatItalianDate(file.name) : file.name;
+                                                            return (
+                                                                <Link key={file.name} href={href} className={cn("flex items-center gap-2 p-1.5 rounded-md text-sm transition-colors", getActiveState(href))}>
+                                                                    <FileText className="w-3.5 h-3.5 shrink-0" />
+                                                                    <span className="truncate" title={displayName}>{displayName}</span>
+                                                                </Link>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+                                            ))}
                                     </div>
                                 )}
                             </div>
