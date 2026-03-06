@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Book, ChevronRight, FileText, RefreshCw } from "lucide-react";
-import { Course } from "@/lib/data";
+import type { Course } from "@/lib/data";
 import { formatItalianDate } from "@/lib/format-date";
 import { reloadData } from "@/app/actions";
 import { cn } from "@/lib/utils";
