@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FolderPlus, Upload } from "lucide-react";
-import { createCourse, createFolder, uploadFile } from "@/app/actions";
+import { Plus, FolderPlus, Upload, X, FileText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { createCourse, createFolder, uploadFiles } from "@/app/actions";
 
 // ─── Create Course ───────────────────────────────────────────────────────────
 export function CreateCourseDialog() {
@@ -101,47 +101,123 @@ export function CreateFolderDialog({ courseName }: { courseName: string }) {
     );
 }
 
-// ─── Upload File to a Folder ──────────────────────────────────────────────────
+// ─── Upload Files to a Folder ────────────────────────────────────────────────
 export function UploadFileDialog({ courseName, folderName }: { courseName: string; folderName: string }) {
     const [open, setOpen] = useState(false);
     const [pending, startTransition] = useTransition();
     const [error, setError] = useState("");
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const inputRef = useRef<HTMLInputElement>(null);
 
-    const boundUpload = uploadFile.bind(null, courseName, folderName);
+    const boundUpload = uploadFiles.bind(null, courseName, folderName);
 
-    async function handleSubmit(fd: FormData) {
+    function handleFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const files = Array.from(e.target.files ?? []);
+        setSelectedFiles((prev) => {
+            const existingNames = new Set(prev.map((f) => f.name));
+            return [...prev, ...files.filter((f) => !existingNames.has(f.name))];
+        });
+        // reset <input> so the same file can be re-picked after removal
+        e.target.value = "";
+    }
+
+    function removeFile(name: string) {
+        setSelectedFiles((prev) => prev.filter((f) => f.name !== name));
+    }
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        if (!selectedFiles.length) return;
         setError("");
+        const fd = new FormData();
+        for (const file of selectedFiles) fd.append("files", file);
         startTransition(async () => {
             const res = await boundUpload(fd);
             if (res?.error) setError(res.error);
-            else setOpen(false);
+            else { setOpen(false); setSelectedFiles([]); }
         });
     }
 
+    function handleOpenChange(v: boolean) {
+        setOpen(v);
+        if (!v) { setSelectedFiles([]); setError(""); }
+    }
+
     return (
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); setError(""); }}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                 <button
                     onClick={(e) => { e.stopPropagation(); setOpen(true); }}
                     className="p-0.5 rounded opacity-0 group-hover/folder:opacity-100 transition-opacity hover:bg-accent"
-                    title="Upload PDF"
+                    title="Upload PDFs"
                 >
                     <Upload className="w-3 h-3" />
                 </button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
                 <DialogHeader>
                     <DialogTitle>Upload to {courseName} / {folderName}</DialogTitle>
                 </DialogHeader>
-                <form action={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Drop zone / pick button */}
                     <div className="space-y-1.5">
-                        <Label htmlFor="file-upload">PDF file</Label>
-                        <Input id="file-upload" name="file" type="file" accept=".pdf" required />
+                        <Label>PDF files</Label>
+                        <div
+                            className="border-2 border-dashed border-border rounded-lg px-4 py-6 text-center cursor-pointer hover:border-primary transition-colors"
+                            onClick={() => inputRef.current?.click()}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                const files = Array.from(e.dataTransfer.files);
+                                setSelectedFiles((prev) => {
+                                    const existingNames = new Set(prev.map((f) => f.name));
+                                    return [...prev, ...files.filter((f) => !existingNames.has(f.name))];
+                                });
+                            }}
+                        >
+                            <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">
+                                Click to browse or drag & drop PDFs here
+                            </p>
+                        </div>
+                        <Input
+                            ref={inputRef}
+                            type="file"
+                            accept=".pdf"
+                            multiple
+                            className="hidden"
+                            onChange={handleFilesChange}
+                        />
                     </div>
-                    {error && <p className="text-sm text-destructive">{error}</p>}
+
+                    {/* Selected file list */}
+                    {selectedFiles.length > 0 && (
+                        <ul className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                            {selectedFiles.map((f) => (
+                                <li key={f.name} className="flex items-center gap-2 text-xs bg-muted rounded-md px-2 py-1">
+                                    <FileText className="w-3.5 h-3.5 shrink-0 text-primary" />
+                                    <span className="flex-1 truncate" title={f.name}>{f.name}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeFile(f.name)}
+                                        className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
+                    {error && <p className="text-sm text-destructive whitespace-pre-wrap">{error}</p>}
+
                     <DialogFooter>
-                        <Button type="submit" disabled={pending}>
-                            {pending ? "Uploading…" : "Upload"}
+                        <Button type="submit" disabled={pending || selectedFiles.length === 0}>
+                            {pending
+                                ? "Uploading…"
+                                : selectedFiles.length > 0
+                                    ? `Upload ${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`
+                                    : "Upload"}
                         </Button>
                     </DialogFooter>
                 </form>

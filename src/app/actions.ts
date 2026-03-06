@@ -48,21 +48,30 @@ export async function createFolder(formData: FormData) {
     }
 }
 
-export async function uploadFile(courseName: string, folderName: string, formData: FormData) {
-    const file = formData.get("file") as File;
-    if (!file) return { error: "No file provided" };
-    if (!file.name.toLowerCase().endsWith(".pdf")) return { error: "Only PDF files are allowed" };
+export async function uploadFiles(courseName: string, folderName: string, formData: FormData) {
+    const files = formData.getAll("files") as File[];
+    if (!files.length) return { error: "No files provided" };
 
-    try {
-        const bytes = await file.arrayBuffer();
-        const filePath = safePath(courseName, folderName, file.name);
-        await fs.writeFile(filePath, Buffer.from(bytes));
-        revalidatePath("/", "layout");
-        return { success: true };
-    } catch (err) {
-        console.error(err);
-        return { error: "Failed to upload file" };
+    const errors: string[] = [];
+
+    for (const file of files) {
+        if (!file.name.toLowerCase().endsWith(".pdf")) {
+            errors.push(`${file.name}: only PDF files are allowed`);
+            continue;
+        }
+        try {
+            const bytes = await file.arrayBuffer();
+            const filePath = safePath(courseName, folderName, file.name);
+            await fs.writeFile(filePath, Buffer.from(bytes));
+        } catch (err) {
+            console.error(err);
+            errors.push(`${file.name}: failed to write`);
+        }
     }
+
+    revalidatePath("/", "layout");
+    if (errors.length) return { error: errors.join("\n") };
+    return { success: true };
 }
 
 export async function deleteFile(courseName: string, folderName: string, fileName: string) {
