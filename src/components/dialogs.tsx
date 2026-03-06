@@ -58,7 +58,7 @@ export function CreateCourseDialog() {
 }
 
 // ─── Add Folder to Course ─────────────────────────────────────────────────────
-export function CreateFolderDialog({ courseName }: { courseName: string }) {
+export function CreateFolderDialog({ courseName, variant = "icon" }: { courseName: string; variant?: "icon" | "button" }) {
     const [open, setOpen] = useState(false);
     const [pending, startTransition] = useTransition();
     const [error, setError] = useState("");
@@ -75,13 +75,23 @@ export function CreateFolderDialog({ courseName }: { courseName: string }) {
     return (
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); setError(""); }}>
             <DialogTrigger asChild>
-                <button
-                    onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-1 rounded hover:bg-background/50 transition-colors"
-                    title="Add folder"
-                >
-                    <FolderPlus className="w-3.5 h-3.5" />
-                </button>
+                {variant === "button" ? (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+                        className="h-8 px-3 rounded-md text-xs font-medium flex items-center gap-1.5 border border-border bg-background/40 hover:bg-background/70 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <FolderPlus className="w-3.5 h-3.5" />
+                        Add Folder
+                    </button>
+                ) : (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-1 rounded hover:bg-background/50 transition-colors"
+                        title="Add folder"
+                    >
+                        <FolderPlus className="w-3.5 h-3.5" />
+                    </button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
                 <DialogHeader>
@@ -106,7 +116,7 @@ export function CreateFolderDialog({ courseName }: { courseName: string }) {
 }
 
 // ─── Upload Files to a Folder ────────────────────────────────────────────────
-export function UploadFileDialog({ courseName, folderName }: { courseName: string; folderName: string }) {
+export function UploadFileDialog({ courseName, folderName, variant = "icon" }: { courseName: string; folderName: string; variant?: "icon" | "button" }) {
     const [open, setOpen] = useState(false);
     const [pending, startTransition] = useTransition();
     const [error, setError] = useState("");
@@ -121,7 +131,6 @@ export function UploadFileDialog({ courseName, folderName }: { courseName: strin
             const existingNames = new Set(prev.map((f) => f.name));
             return [...prev, ...files.filter((f) => !existingNames.has(f.name))];
         });
-        // reset <input> so the same file can be re-picked after removal
         e.target.value = "";
     }
 
@@ -150,13 +159,23 @@ export function UploadFileDialog({ courseName, folderName }: { courseName: strin
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                <button
-                    onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-                    className="p-0.5 rounded opacity-0 group-hover/folder:opacity-100 transition-opacity hover:bg-accent"
-                    title="Upload PDFs"
-                >
-                    <Upload className="w-3 h-3" />
-                </button>
+                {variant === "button" ? (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+                        className="h-8 px-3 rounded-md text-xs font-medium flex items-center gap-1.5 border border-border bg-background/40 hover:bg-background/70 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <Upload className="w-3.5 h-3.5" />
+                        Upload
+                    </button>
+                ) : (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+                        className="p-0.5 rounded opacity-0 group-hover/folder:opacity-100 transition-opacity hover:bg-accent"
+                        title="Upload PDFs"
+                    >
+                        <Upload className="w-3 h-3" />
+                    </button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
                 <DialogHeader>
