@@ -1,55 +1,66 @@
 import fs from "fs/promises";
 import path from "path";
 
-const dataDir = path.join(process.cwd(), "data");
+export const dataDir = path.join(process.cwd(), "data");
 
 export type FileItem = {
     name: string;
-    path: string; // url friendly path component
+    encodedName: string; // url-safe
 };
 
-export type CourseFolders = Record<string, FileItem[]>;
+export type CourseFolder = {
+    name: string;
+    files: FileItem[];
+};
 
-export async function getCourses(): Promise<string[]> {
+export type Course = {
+    name: string;
+    folders: CourseFolder[];
+};
+
+export async function getCourses(): Promise<Course[]> {
     try {
         await fs.mkdir(dataDir, { recursive: true });
         const entries = await fs.readdir(dataDir, { withFileTypes: true });
-        return entries
-            .filter((entry) => entry.isDirectory())
-            .map((entry) => entry.name)
+        const courseNames = entries
+            .filter((e) => e.isDirectory())
+            .map((e) => e.name)
             .sort((a, b) => a.localeCompare(b));
+
+        return Promise.all(courseNames.map(getCourse));
     } catch (err) {
         console.error("Failed to read courses:", err);
         return [];
     }
 }
 
-export async function getCourseContent(courseName: string): Promise<CourseFolders> {
-    const folders: Record<string, FileItem[]> = {};
+export async function getCourse(courseName: string): Promise<Course> {
     const coursePath = path.join(dataDir, courseName);
+    const folders: CourseFolder[] = [];
 
     try {
-        const courseEntries = await fs.readdir(coursePath, { withFileTypes: true });
-        const directories = courseEntries.filter(entry => entry.isDirectory()).map(entry => entry.name);
+        const entries = await fs.readdir(coursePath, { withFileTypes: true });
+        const folderNames = entries
+            .filter((e) => e.isDirectory())
+            .map((e) => e.name)
+            .sort((a, b) => a.localeCompare(b));
 
-        for (const folder of directories) {
-            const folderPath = path.join(coursePath, folder);
+        for (const folderName of folderNames) {
+            const folderPath = path.join(coursePath, folderName);
             try {
-                const entries = await fs.readdir(folderPath, { withFileTypes: true });
-                folders[folder] = entries
-                    .filter((entry) => entry.isFile() && entry.name.endsWith(".pdf"))
-                    .map((entry) => ({
-                        name: entry.name,
-                        path: encodeURIComponent(entry.name),
-                    }))
+                const fileEntries = await fs.readdir(folderPath, { withFileTypes: true });
+                const files: FileItem[] = fileEntries
+                    .filter((e) => e.isFile() && e.name.toLowerCase().endsWith(".pdf"))
+                    .map((e) => ({ name: e.name, encodedName: encodeURIComponent(e.name) }))
                     .sort((a, b) => a.name.localeCompare(b.name));
+                folders.push({ name: folderName, files });
             } catch {
-                // folder might not exist, silently ignore
+                // skip unreadable folders
             }
         }
     } catch {
-        // course directory might not exist
+        // course not found
     }
 
-    return folders;
+    return { name: courseName, folders };
 }
