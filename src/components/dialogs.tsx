@@ -28,9 +28,13 @@ export function CreateCourseDialog() {
     return (
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); setError(""); }}>
             <DialogTrigger asChild>
-                <Button size="icon" variant="outline" title="Create new course">
-                    <Plus className="w-4 h-4" />
-                </Button>
+                <button
+                    className="h-8 px-3 rounded-md text-xs font-medium flex items-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    title="Create new course"
+                >
+                    <Plus className="w-3.5 h-3.5" />
+                    New Course
+                </button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-sm">
                 <DialogHeader>
@@ -73,7 +77,7 @@ export function CreateFolderDialog({ courseName }: { courseName: string }) {
             <DialogTrigger asChild>
                 <button
                     onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-                    className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent"
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-1 rounded hover:bg-background/50 transition-colors"
                     title="Add folder"
                 >
                     <FolderPlus className="w-3.5 h-3.5" />
